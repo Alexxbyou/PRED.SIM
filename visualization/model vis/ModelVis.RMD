@@ -1,0 +1,84 @@
+---
+title: "Risk Engine Visualization"
+output: html_document
+runtime: shiny
+---
+
+
+```{R, echo=F, message=F}
+require(tidyverse)
+eng.list.simp<-readRDS("data/eng.list.simp.RDS")
+MDL.setup<-eng.list.simp$MDL.setup
+elname<-names(eng.list.simp)%>%.[.!="MDL.setup"]
+oc.list<-MDL.setup%>%
+    filter(VarCat=="Risk Factor",VarType=="binary")%>%
+    select(Colname)
+imgpath<-function(oc,img)str_c("data/graph/",oc,"/",img)
+```
+
+### Model Setup:
+
+See below for the overview of model setup
+```{R,echo=F}
+renderTable(MDL.setup,striped=T,hover=T,spacing="xs")
+```
+
+
+
+### Result
+Result of the prediction model fitting. See the transition matrix/ coefficient table below. 
+
+Select variables:
+```{R,echo=F}
+selectInput("coef.item","",choices = elname)
+```
+
+```{R,echo=F}
+renderDataTable({eng.list.simp[[input$coef.item]]})
+```
+
+
+
+### Modle validation
+Select variables:
+```{R,echo=F}
+selectInput("val.item","",choices = oc.list)
+
+```
+
+#### Risk score distribution
+
+```{R,echo=F}
+renderImage(list(src=imgpath(input$val.item,"score.tiff"),height=600),deleteFile=F)
+```
+
+
+
+
+
+```{R,echo=F}
+renderImage(list(src=imgpath(input$val.item,"roc.tiff"),height=600),deleteFile=F)
+```
+
+
+
+
+
+
+
+```{R,echo=F}
+renderImage(list(src=imgpath(input$val.item,"perf.tiff"),height=600),deleteFile=F)
+```
+
+
+
+
+
+
+```{R,echo=F}
+renderImage(list(src=imgpath(input$val.item,"thres.tiff"),height=600),deleteFile=F)
+```
+
+
+
+

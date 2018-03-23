@@ -4,24 +4,27 @@
 # Title: Risk Engine & Simulation Engine
 # Description: Risk Engine & Simulation Engine
 ## Functions ===
-##	#na.rpl	46
-##	get.var	58
-##	fml.gen.glmer	67
-##	fml.gen.glm	78
-##	trans.cal	87
-##	simp.age.proc	94
-##	get.risk.eng	105
-##	get.risk.eng.glm	136
-##	get.risk.eng.glmer	144
-##	get.eng.list	150
-##	#get.eng.list.test	161
-##	sim.bin	181
-##	sim.vec	195
-##	sim.fac	197
-##	sim.age	208
-##	sim.1y	214
-##	sim.n.year	241
-##	p.slash	244
+##	#na.rpl	50
+##	p.slash	63
+##	get.var	68
+##	fml.gen.glmer	77
+##	fml.gen.glm	88
+##	trans.cal	97
+##	simp.age.proc	104
+##	get.risk.eng	115
+##	get.risk.eng.glm	153
+##	get.risk.eng.glmer	161
+##	get.eng.list	167
+##	tm.gen	186
+##	get.risk.cat.eng	213
+##	#get.eng.list.test	239
+##	sim.bin	259
+##	sim.vec	273
+##	sim.fac	275
+##	sim.age	286
+##	sim.RCE	292
+##	sim.1y	305
+##	sim.n.year	334
 ## ===
 
 ##########################################################################
@@ -29,8 +32,8 @@
 
 require(tidyverse)
 require(reshape2)
-require(lme4)  # for glmer
-require(nlme)  # for random.effect
+#require(lme4)  # for glmer
+#require(nlme)  # for random.effect
 
 ########################################################
 # Data
@@ -132,7 +135,7 @@ get.risk.eng<-function(outcome,data.x,data.y,MDL.setup,simp=T){
     data.x.sub<-data.x[r.sub,-oc.col]
     reg.data<-left_join(data.x.sub,data.y[,c(id.col,outcome)])
     var.set<-get.var(outcome,MDL.setup)
-    risk.eng<-get.risk.eng.glm(reg.data,var.set)
+    risk.eng<-get.risk.eng.glm(reg.data,var.set,MDL.setup)
     print(str_c(outcome," GLM model fitted."))
   }
   return(risk.eng)
@@ -147,12 +150,44 @@ get.risk.eng<-function(outcome,data.x,data.y,MDL.setup,simp=T){
 #  print(str_c(outcome," GLMER model fitted."))
 #}
 
-get.risk.eng.glm<-function(reg.data,var.set){
+# Age check and var check, when factor variable does not all levels, it will be discarded
+
+get.risk.eng.glm<-function(reg.data,var.set,MDL.setup){
+  
+  #age check and update
   age.col<-grep("age",names(reg.data),ignore.case = T)
-  reg.data[,age.col]<-reg.data[,age.col]%>%simp.age.proc
+  age.band<-reg.data[,age.col]%>%levels%>%as.numeric%/%10%>%unique
+  if(any(!(4:9)%in%age.band)){
+    var.set$x<-var.set$x[var.set$x!=names(reg.data)[age.col]]
+  }else{
+    reg.data[,age.col]<-reg.data[,age.col]%>%simp.age.proc
+  }
+  
+  #var check
+  var.set<-var.check(var.set,reg.data,MDL.setup)
   fml<-fml.gen.glm(var.set)
   risk.eng<-glm(fml,data=reg.data,family="binomial")
   return(risk.eng)
+}
+
+var.check<-function(var.set,reg.data,MDL.setup){
+  fac.var<-MDL.setup$Colname[MDL.setup$VarCat=="Risk Factor"&MDL.setup$VarType=="factor"]
+  bin.var<-MDL.setup$Colname[MDL.setup$VarCat=="Risk Factor"&MDL.setup$VarType=="binary"]
+  bin.var<-bin.var[bin.var!=var.set$y]
+  var.x<-var.set$x
+  fac.ind<-sapply(fac.var,function(v){
+    !identical(
+      reg.data[,v]%>%unique%>%sort%>%as.character,
+      reg.data[,v]%>%levels
+    )
+  })
+  if(any(fac.ind))var.x<-var.x[!var.x%in%fac.var[fac.ind]]
+  bin.ind<-sapply(bin.var,function(v){
+    (reg.data[,v]%>%unique%>%length)==1
+  })
+  if(any(bin.ind))var.x<-var.x[!var.x%in%bin.var[bin.ind]]
+  var.set$x<-var.x
+  return(var.set)
 }
 
 get.risk.eng.glmer<-function(reg.data,var.set){
@@ -253,15 +288,19 @@ get.risk.cat.eng<-function(riskcat,data.x,data.y,MDL.setup){
 #eng.list<-get.eng.list(data.x,data.y,MDL.setup,simp=T)
 
 
-sim.bin<-function(outcome,data.x,eng.list){
+sim.bin<-function(outcome,data.x,eng.list,cal.prob=F){
   rind<-which(data.x[,outcome]==0)
   result<-data.x[,outcome]
   data.x.sub<-data.x%>%
     mutate(AGE=simp.age.proc(AGE))%>%
     .[rind,]
   model<-eng.list[[outcome]]
-  prob<-predict(model,data.x.sub,type = "response")
-  result[rind]<-(runif(length(prob))<prob)%>%as.numeric
+  prob<-predict(model,data.x.sub,type = "response",allow.new.levels=T)
+  if(cal.prob){
+    result[rind]<-prob
+  }else{
+    result[rind]<-(runif(length(prob))<prob)%>%as.numeric
+  }
   print(str_c(outcome," updated."))
   return(result)
 }
@@ -294,6 +333,7 @@ sim.RCE<-function(data.x,RCE.list,simp=T){
     predict(RCE.list[[l]],data.x,type="response")
   })%>%as.tibble
   out<-lvl[apply(pred,1,sim.vec)]
+  print("RiskCat Updated")
   return(out)
 }
 
@@ -342,9 +382,9 @@ sim.n.year<-function(n,data.x,eng.list,MDL.setup,save="RUN/SIM"){
   data.x.curr<-data.x
   saveRDS(data.x,str_c(run.fd,"Y000.RDS"))
   for(yr in 1:n){
-    data.x.curr<-sim.1y(data.x,eng.list,MDL.setup)
+    data.x.curr<-sim.1y(data.x.curr,eng.list,MDL.setup)
     fn<-str_c("Y",sprintf("%03d",yr))
-    saveRDS(data.x,str_c(run.fd,fn,".RDS"))
+    saveRDS(data.x.curr,str_c(run.fd,fn,".RDS"))
     print(str_c(fn," simulated and saved. (",yr,"/",n,")"))
   }
 }

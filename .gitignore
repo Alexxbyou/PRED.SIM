@@ -1,5 +1,8 @@
 *.RData
 *.RDS
+*.tiff
+*.jpeg
+*.png
 
 data creation/data
 risk engine/data
