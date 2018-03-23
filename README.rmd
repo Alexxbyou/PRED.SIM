@@ -1,0 +1,66 @@
+---
+title: "PRED.SIM README"
+author: "Alex"
+date: "21 March 2018"
+output:
+  html_document:
+    df_print: paged
+---
+
+### Overview
+The **PRED.SIM** module is an **automatic** analytic module that allows you to do data analysis and projection. It applies Supervised Learning modelsto learn the progression of risk factors in cross-sectional data, and further use it to project the trend in future.
+
+
+### Procedure
+
+The procedures in executing PRED.SIM module
+1. Data Preparation & Model Setup
+2. Risk Engine Training
+3. Simulation
+4. Visualization and Report
+
+### 1. Data Preparation & Model Setup 
+
+#### Data preparation
+Model data need to be prepare into 3 files:
+
+1. **data.x** : the predictors  
+2. **data.y** : the outcomes/progression in the following year
+3. **MDL.setup** : the model setup, which records variable category, type, and levels
+
+
+#### Model Setup
+Before you apply the PRED.SIM module, all you need is to define variable type. Different variable type determines how the module deals with it. In PRED.SIM, variables are classified into the following groups:
+
+* **ID** : idividual ID for mapping between predictors and outcome
+
+* **Demographics** : age, gender, race, etc., variables remain unchanged over time
+
+* **Risk Factors** : can be chronic conditions or test result
+
+* **Intervention** : decision variables, remain unchanged over time
+
+* **Risk Category**
+
+* **Measure** : cost, utilization, resource, variables that relate to risk category, and reflect the effect of intervention when risk category progress, 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
