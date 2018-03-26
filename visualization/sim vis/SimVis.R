@@ -1,26 +1,303 @@
+##########################################################################
+##########################################################################
+
+# Title: Simulation visualization
+# Description: to show the coefficient and validate the model
+
+##########################################################################
+##########################################################################
+
+require(tidyverse)
+require(reshape2)
+require(grid)
+
+########################################################
+# Data
+########################################################
+data.dir<-"D:/bdtest/pred.sim/risk engine/data/"
+MDL.setup<-readRDS(str_c(data.dir,"MDL.setup.RDS"))
+
 sim.fd<-"D:/bdtest/pred.sim/risk engine/RUN/SIM/SIM20180323172001/"
+fn.list<-dir(sim.fd)
+fn.simp<-str_replace(fn.list,"\\.RDS","")
 
-
-
-for(fn in dir(sim.fd)){
-  readRDS(str_c(sim.fd,fn))
-    
+sim.result<-list()
+for(y in 0:20){
+  fn<-fn.simp[[y+1]]
+  sim.result[[fn]]<-readRDS(str_c(sim.fd,fn.list[y+1]))
+  print(paste(fn.list[y+1],"read."))
 }
 
 
 
-ckd.prev<-sapply(dir(sim.fd),function(fn){
-  readRDS(str_c(sim.fd,fn))%>%
-    .[,"CKD"]%>%
-    mean(na.rm=T)
-})
 
-lipid<-sapply(dir(sim.fd),function(fn){
-  readRDS(str_c(sim.fd,fn))%>%
-    .[,"Dyslipidemia"]%>%
-    mean(na.rm=T)
-})
 
-plot(lipid,type="l")
+########################################################
+# Visualization of simulation
+########################################################
+bin.var<-MDL.setup%>%
+  filter(VarCat=="Risk Factor"&VarType=="binary")%>%
+  select(Colname)%>%
+  unlist
+fac.var<-MDL.setup%>%
+  filter(VarCat%in%c("Risk Factor","Risk Category")&VarType!="binary")%>%
+  select(Colname)%>%
+  unlist
+
+
+
+
+# vis
+# prev.tb%>%melt(id.var="year")%>%ggplot(aes(x=year,y=value,colour=variable))+geom_line(size=.8)+ylim(0,1)
+
+
+
+
+
+
+########################################################
+# Visualization of outcome
+########################################################
+
+outcome<-MDL.setup%>%
+  filter(VarCat=="Outcome")%>%
+  select(Colname)%>%
+  unlist
+
+rc.name<-MDL.setup$Colname[MDL.setup$VarType=="riskcat"]
+riskcat<-sim.result$Y000[,rc.name]%>%unique%>%sort
+oc.aggr<-tibble()
+for(rc in riskcat){
+  rind<-sim.result$Y000[,rc.name]==rc
+  for(oc in outcome){
+    temp<-tibble(
+      RiskCat=rc,
+      Outcome=oc,
+      Mean=sim.result$Y000[rind,oc]%>%mean(na.rm=T),
+      SD=sim.result$Y000[rind,oc]%>%sd(na.rm=T)
+    )
+    oc.aggr<-rbind(oc.aggr,temp)
+  }
+}
+
+oc.aggr.mean<-oc.aggr[,1:3]%>%dcast(RiskCat~Outcome)
+
+
+
+# by year
+# cummulative
+# end
+
+
+########################################################
+# prep
+########################################################
+
+
+bin.var<-MDL.setup%>%
+  filter(VarCat=="Risk Factor"&VarType=="binary")%>%
+  select(Colname)%>%
+  unlist
+fac.var<-MDL.setup%>%
+  filter(VarCat%in%c("Risk Factor","Risk Category")&VarType!="binary")%>%
+  select(Colname)%>%
+  unlist
+
+outcome<-MDL.setup%>%
+  filter(VarCat=="Outcome")%>%
+  select(Colname)%>%
+  unlist
+
+get.oc.aggr<-function(...){
+  rc.name<-MDL.setup$Colname[MDL.setup$VarType=="riskcat"]
+  riskcat<-sim.result$Y000[,rc.name]%>%unique%>%sort
+  oc.aggr.temp<-tibble()
+  for(rc in riskcat){
+    rind<-sim.result$Y000[,rc.name]==rc
+    for(oc in outcome){
+      temp<-tibble(
+        RiskCat=rc,
+        Outcome=oc,
+        Mean=sim.result$Y000[rind,oc]%>%mean(na.rm=T),
+        SD=sim.result$Y000[rind,oc]%>%sd(na.rm=T)
+      )
+      oc.aggr.temp<-rbind(oc.aggr.temp,temp)
+    }
+  }
+  
+  oc.aggr<-list(
+    mean=oc.aggr.temp[,1:3]%>%dcast(RiskCat~Outcome),
+    sd=oc.aggr.temp[,-3]%>%dcast(RiskCat~Outcome)
+  )
+  return(oc.aggr)
+}
+
+#oc.aggr<-get.oc.aggr()
+########################################################
+# get sim data
+########################################################
+
+
+# get simulation data
+get.sim<-function(fd){
+  fn.list<-dir(fd)
+  fn.simp<-str_replace(fn.list,"\\.RDS","")
+  n.year<-length(fn.list)-1
+  sim.result<-list()
+  for(y in 0:n.year){
+    fn<-fn.simp[[y+1]]
+    sim.result[[fn]]<-readRDS(str_c(sim.fd,fn.list[y+1]))
+    print(paste(fn.list[y+1],"read."))
+  }
+  return(sim.result)
+}
+
+#sim.fd<-"D:/bdtest/pred.sim/risk engine/RUN/SIM/SIM20180323172001/"
+#sim.data<-get.sim(sim.fd)
+
+ind.fun<-function(x){
+  x.uniqe<-x%>%unique%>%sort
+  df<-sapply(x,function(a)x.uniqe==a)%>%t%>%as.tibble
+  names(df)<-x.uniqe
+  return(df)
+}
+
+get.ind.list<-function(...){
+  ind.list<-list(All=rep(T,nrow(sim.data$Y000)))
+  IV<-MDL.setup$Colname[MDL.setup$VarCat=="Intervention Variable"]
+  if(length(IV)>0){
+    for(iv in IV){
+      ind.list[[iv]]<-sim.data$Y000[,iv]%>%ind.fun
+    }
+  }
+  return(ind.list)
+}
+
+#ind.list<-get.ind.list()
+
+get.prev<-function(ind){
+  sim.data.sub<-lapply(sim.data,function(x)x[ind,])
+  nyear<-length(sim.data.sub)-1
+  prev.tb<-tibble(
+    year=0:nyear
+  )
+  for(var in bin.var){
+    prev<-sapply(sim.data.sub,function(x)x[,var]%>%mean(na.rm=T))
+    prev.tb<-cbind(prev.tb,prev)
+    names(prev.tb)[ncol(prev.tb)]<-var
+  }
+  return(prev.tb)
+}
+
+get.cat.prog<-function(ind){
+  sim.data.sub<-lapply(sim.data,function(x)x[ind,])
+  nyear<-length(sim.data.sub)-1
+  cat.prop.list<-list()
+  for(var in fac.var){
+    df<-sapply(sim.data.sub,function(x)x[,var]%>%table)%>%t%>%as.tibble
+    df<-cbind(year=0:nyear,df)
+    cat.prop.list[[var]]<-df
+  }
+  return(cat.prop.list)
+}
+
+get.OC.by.yr<-function(ind){
+  RiskCat<-get.cat.prog(ind)$RiskCat
+  nyear<-nrow(RiskCat)-1
+  OC.by.yr<-cbind(
+    year=0:nyear,
+    as.matrix(RiskCat[,-1])%*%as.matrix(oc.aggr$mean[,-1])
+  )%>%as.tibble
+  OC.by.yr$year<-as.integer(OC.by.yr$year)
+  return(OC.by.yr)
+}
+
+cumu<-function(x){
+  sapply(1:length(x),function(a)sum(x[1:a]))
+}
+
+get.oc.cumu<-function(OC.by.yr){
+  OC.by.yr[,-1]<-OC.by.yr[,-1]%>%sapply(cumu)
+  return(OC.by.yr)
+}
+
+get.sum<-function(ind){
+  if(is.vector(ind)){
+    prev<-get.prev(ind)
+    prog<-get.cat.prog(ind)
+    oc.by.yr<-get.OC.by.yr(ind)
+    oc.cumu<-get.oc.cumu(oc.by.yr)
+    list(
+      prev=prev,
+      prog=prog,
+      oc.by.yr=oc.by.yr,
+      oc.cumu=oc.cumu
+    )
+  }else{
+    lapply(ind,get.sum)
+  }
+}
+
+get.sum.list<-function(ind.list){
+  lapply(ind.list,get.sum)
+}
+
+
+#sim.sum<-get.sum.list(ind.list)
+########################################################
+# visualization
+########################################################
+
+
+###################################
+# prevalence
+
+prev.all<-function(title){
+  v.data<-sim.sum$All$prev%>%melt(id.var="year")
+  names(v.data)<-c("Year","Factor","prevalence")
+  ggplot(v.data,aes(x=Year,y=prevalence,colour=Factor))+
+    geom_line(size=.8)+ylim(0,1)+
+    ylab("Prevalence (%)")+ggtitle(title)+
+    theme(legend.position = "bottom")
+}
+
+prev.int<-function(int,var,title){
+  sim.sum.sub<-sim.sum[[int]]
+  int.c<-names(sim.sum.sub)
+  vis.df<-tibble()
+  for(i in int.c){
+    temp<-sim.sum.sub[[i]][["prev"]][,c("year",var)]
+    temp$Intervention<-i
+    vis.df<-rbind(vis.df,temp)
+  }
+  names(vis.df)<-c("Year","prevalence","Intervention")
+  ggplot(vis.df,aes(x=Year,y=prevalence,colour=Intervention))+
+    geom_line(size=.8)+
+    ylab("Prevalence (%)")+ggtitle(title)+
+    theme(legend.position = "bottom")
+}
+
+#prev.int("iswellcontrolled","Dyslipidemia","")
+
+
+vis.prog<-function(x){
+  x%>%
+    melt(id.vars="year")%>%
+    ggplot(aes(x=year,y=value,fill=variable))+
+    geom_area(position="fill")
+}
+
+
+prog.all<-function(var){
+  sim.sum$All$prog[[var]]%>%vis.prog
+}
+
+
+
+
+
+
+
+
 
 
