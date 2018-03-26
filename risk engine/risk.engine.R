@@ -389,4 +389,5 @@ sim.n.year<-function(n,data.x,eng.list,MDL.setup,save="RUN/SIM"){
   }
 }
 
+setwd("risk engine/")
 #sim.n.year(20,data.x,eng.list,MDL.setup)
