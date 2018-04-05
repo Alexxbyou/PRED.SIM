@@ -287,8 +287,7 @@ cat2perc<-function(x){
   )
 }
 
-#dir.create("SimStratComp/code/")
-#file.copy("visualization/sim vis/SimVis.function.R","SimStratComp/code/SimVis.function.R")
+
 
 
 

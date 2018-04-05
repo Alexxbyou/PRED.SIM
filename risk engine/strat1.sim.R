@@ -1,0 +1,97 @@
+##########################################################################
+##########################################################################
+
+# Title: Simulation strat1
+# Description: Strategy: stratefy the transition matrix by age
+## Functions ===
+##	#na.rpl	50
+##	p.slash	63
+##	get.var	68
+##	fml.gen.glmer	77
+##	fml.gen.glm	88
+##	trans.cal	97
+##	simp.age.proc	104
+##	get.risk.eng	115
+##	get.risk.eng.glm	153
+##	get.risk.eng.glmer	161
+##	get.eng.list	167
+##	tm.gen	186
+##	get.risk.cat.eng	213
+##	#get.eng.list.test	239
+##	sim.bin	259
+##	sim.vec	273
+##	sim.fac	275
+##	sim.age	286
+##	sim.RCE	292
+##	sim.1y	305
+##	sim.n.year	334
+## ===
+
+##########################################################################
+##########################################################################
+
+sim.1y.strat1<-function(data.x,eng.list.strat1){
+  eng.list.long<-eng.list.strat1%>%eng.list.trans.strat1
+  data.x[,riskcat]<-sim.strat1(data.x,eng.list.long)
+  data.x$Death<-(data.x[,riskcat]=="9")%>%as.numeric
+  return(data.x)
+}
+
+eng.list.trans.strat1<-function(eng.list.strat1){
+  tm.name<-names(eng.list.strat1)
+  eng.list.long<-tibble()
+  for(i in 2:length(eng.list.strat1)){
+    temp<-cbind(
+      Age=tm.name[i],
+      riskcat=rownames(eng.list.strat1[[i]]),
+      eng.list.strat1[[i]]%>%as.tibble
+    )
+    names(temp)[2]<-riskcat
+    eng.list.long<-rbind(eng.list.long,temp)
+  }
+  return(eng.list.long)
+}
+
+sim.strat1<-function(data.x,eng.list.long){
+  dice<-data.x%>%
+    mutate(Age=Age%>%simp.age.proc)%>%
+    .[,c("Age",riskcat)]%>%
+    left_join(eng.list.long)%>%
+    .[,-c(1:2)]
+  ind<-dice%>%apply(1,sum)%>%as.logical
+  out<-data.x[,riskcat]
+  out[ind]<-apply(dice[ind,],1,sim.vec)
+  lvl<-data.x[,riskcat]%>%levels
+  result<-factor(lvl[out],lvl)
+  return(result)
+}
+
+sim.n.year.strat1<-function(nyear=30,data.x,eng.list.strat1,MDL.setup,N=NULL,save="risk engine/RUN/SIM"){
+  
+  ## dir
+  save<-save%>%p.slash
+  if(!dir.exists(save))dir.create(save)
+  
+  ## run id
+  run.id<-str_c("SIM",Sys.time()%>%str_replace_all("[^[:digit:]]",""))
+  run.fd<-str_c(save,run.id,"/")
+  if(!dir.exists(run.fd))dir.create(run.fd)
+  
+  ## simulation
+  if(!is.null(N)){
+    set.seed(527)
+    sp.ind<-sample(1:nrow(data.x),N,replace=T)
+    data.x.curr<-data.x[sp.ind,]
+  }else{
+    data.x.curr<-data.x[,]
+  }
+  saveRDS(data.x.curr,str_c(run.fd,"Y000.RDS"))
+  for(yr in 1:nyear){
+    data.x.curr<-sim.1y.strat1(data.x.curr,eng.list.strat1)
+    fn<-str_c("Y",sprintf("%03d",yr))
+    saveRDS(data.x.curr,str_c(run.fd,fn,".RDS"))
+    print(str_c(fn," simulated and saved. (",yr,"/",nyear,")"))
+  }
+  print(str_c("Simulation saved in ",run.fd))
+  return(run.fd)
+}

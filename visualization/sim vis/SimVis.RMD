@@ -11,7 +11,7 @@ sim.sum.dir<-"SIM.sum/SIM20180326220713.RDS"
 sim.sum<-readRDS(sim.sum.dir)
 MDL.setup<-sim.sum$MDL.setup
 bin.var<-MDL.setup%>%
-  filter(VarCat=="Risk Factor"&VarType=="binary")%>%
+  filter(VarCat%in%c("Risk Factor","Absorb")&VarType=="binary")%>%
   select(Colname)%>%
   unlist
 fac.var<-MDL.setup%>%

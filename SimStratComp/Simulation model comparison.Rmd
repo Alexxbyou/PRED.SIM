@@ -1,0 +1,80 @@
+---
+title: "Simulation model comparison"
+author: "Alex"
+date: "04/04/2018"
+output: html_document
+---
+
+### Overview
+This report conducts a comparison between two simulation models. It aims to understand the performance of two models, and how to adjust the model if any bias happens.
+
+The models are simulating the diabetes risk category progress. Categories are listed as below:
+
+1. Healthy
+2. At Risk: BMI >= 23.5 $kg/m^2$
+3. Diabetes only
+4. Hypertension
+5. Diabetes + Hypertension
+6. Diabetes + CC
+7. Hypertension + CC
+8. Diabetes + Hypertension + CC
+9. Death
+
+*CC: CKD, CHD, Stroke, Heart Failure, AF*
+
+
+### Simulation
+
+#### Model 1: Markov model
+Model 1 uses age-stratefied risk transition matrix. All age are stratefied in to *<40, 40-49, 50-59, 60-69, 70-79, 80-89* and *>=90* bands. Within each age band, the *1 year transition matrix* are calculated and used for simulation/projection.
+
+#### Model 2: Markov Random Field
+Model 2 simulates the disease progression based on demographics and other risk factors, and update the risk category according to the definition.
+
+##### Data
+* [js=* 
+
+
+*Pros:* the model shows 
+
+
+
+```{r,echo=F,message=F}
+require(tidyverse)
+require(knitr)
+source("code/SimVis.function.R")
+mdl1<-readRDS("data/Strat1.result.RDS")
+mdl3<-readRDS("data/Strat3.result.RDS")
+trans<-readRDS("data/trans.RDS")
+
+```
+
+
+
+```{R}
+mdl1$All$RiskCat%>%cat2perc%>%tail%>%kable
+```
+
+```{R}
+mdl3$All$prog$RiskCat%>%cat2perc%>%tail%>%kable
+```
+
+```{R}
+mdl1$All$oc.cumu%>%tail%>%kable
+```
+
+```{R}
+mdl3$All$oc.cumu%>%tail%>%kable
+```
+
+
+```{R}
+mdl1$MediFund$`1`$oc.cumu%>%tail%>%kable
+```
+
+```{R}
+mdl3$MediFund$`1`$oc.cumu%>%tail%>%kable
+```
+
+
+

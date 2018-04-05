@@ -1,0 +1,27 @@
+---
+title: "Simulation model comparison"
+author: "Alex"
+date: "04/04/2018"
+output: html_document
+---
+
+### Overview
+This report conducts a comparison between two simulation models. It aims to understand the performance of two models, and how to adjust the model if any bias happens.
+
+The models are simulating the diabetes risk category progress. Categories are listed as below:
+
+1. Healthy
+2. At Risk: BMI >= 23.5 $kg/m^2$
+3. Diabetes only
+4. Hypertension
+5. Diabetes + Hypertension
+6. Diabetes + CC
+7. Hypertension + CC
+8. Diabetes + Hypertension + CC
+9. Death
+
+
+
+```{r}
+
+```
